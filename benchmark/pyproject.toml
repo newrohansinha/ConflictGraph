@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+testpaths = ["suite"]
+addopts = "-ra"
+markers = [
+  "conflict_family(name): controlled conflict family",
+  "requires_redis: requires benchmark Redis service",
+  "contention: constrained-resource scenario",
+]
+
