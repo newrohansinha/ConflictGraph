@@ -1,0 +1,15 @@
+{{- if not .Values.artifacts.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-artifacts
+  labels: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/instance: {{ .Release.Name }} }
+spec:
+  accessModes: {{ toYaml .Values.artifacts.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.artifacts.size }}
+  {{- if .Values.artifacts.storageClass }}
+  storageClassName: {{ .Values.artifacts.storageClass }}
+  {{- end }}
+{{- end }}

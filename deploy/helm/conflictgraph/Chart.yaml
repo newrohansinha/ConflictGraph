@@ -1,0 +1,7 @@
+apiVersion: v2
+name: conflictgraph
+description: ML-driven CI test interference detection and scheduling
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+icon: https://raw.githubusercontent.com/newrohansinha/ML-CI-Test-Conflict-Detection-Scheduler/main/dashboard/public/conflictgraph.svg

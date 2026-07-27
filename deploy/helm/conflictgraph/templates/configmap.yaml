@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/instance: {{ .Release.Name }} }
+data:
+  conflictgraph.yaml: |
+    version: 1
+    workers: {{ .Values.config.workers }}
+    risk_policy: {{ .Values.config.riskPolicy }}
+    seed: 42
+    artifact_dir: /var/lib/conflictgraph/artifacts
+    database_url: ""
+    api_address: 0.0.0.0:8080
+    tracing:
+      mode: {{ .Values.config.tracingMode }}
+      redact_paths: true
+      hash_salt: ""
+      exclude_prefixes: [/proc, /sys, /usr/lib, /lib]
+      minimum_quality: 0.8
+      cgroup_root: /sys/fs/cgroup/conflictgraph
+      control_socket: /run/conflictgraph/tracer.sock
+    scheduler: { risk_weight: 2.0, hard_threshold: 0.9, refinement_rounds: 4 }
+    model: { artifact: /var/lib/conflictgraph/model, default_no_edge_risk: 0.001 }

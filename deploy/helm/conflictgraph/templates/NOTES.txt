@@ -1,0 +1,18 @@
+ConflictGraph chart rendered.
+
+The workloads require these pre-existing secrets:
+  {{ .Values.postgres.secretName }} / {{ .Values.postgres.secretKey }}
+  {{ .Release.Name }}-tracer / hash-salt
+
+Control plane:
+  kubectl port-forward service/{{ .Release.Name }}-controlplane 8080:8080
+
+Analysis API:
+  kubectl port-forward service/{{ .Release.Name }}-analysis 8090:8090
+
+Dashboard:
+  kubectl port-forward service/{{ .Release.Name }}-dashboard 3000:3000
+
+The tracer DaemonSet requires Linux nodes with cgroup v2, BTF, and the BPF,
+PERFMON, and SYS_RESOURCE capabilities. Populate the artifact volume with graph
+and model artifacts before expecting graph or model data in the dashboard.

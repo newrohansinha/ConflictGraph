@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-analysis
+  labels: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/component: analysis }
+spec:
+  replicas: {{ .Values.analysis.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/component: analysis } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/component: analysis } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: analysis
+          image: {{ .Values.analysis.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          args: [serve, --config, /etc/conflictgraph/conflictgraph.yaml, --host, 0.0.0.0, --port, "8090"]
+          ports: [{ name: http, containerPort: 8090 }]
+          env:
+            - name: CONFLICTGRAPH_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.secretName }}, key: {{ .Values.postgres.secretKey }} } }
+            - name: CONFLICTGRAPH_HASH_SALT
+              valueFrom: { secretKeyRef: { name: {{ .Release.Name }}-tracer, key: hash-salt } }
+          volumeMounts:
+            - { name: config, mountPath: /etc/conflictgraph, readOnly: true }
+            - { name: artifacts, mountPath: /var/lib/conflictgraph, readOnly: true }
+          readinessProbe: { httpGet: { path: /api/v1/health, port: http }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /api/v1/health, port: http }, initialDelaySeconds: 15, periodSeconds: 15 }
+          resources: {{ toYaml .Values.analysis.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, readOnlyRootFilesystem: true }
+      volumes:
+        - { name: config, configMap: { name: {{ .Release.Name }}-config } }
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-artifacts" .Release.Name) .Values.artifacts.existingClaim }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ .Release.Name }}-analysis }
+spec:
+  selector: { app.kubernetes.io/name: conflictgraph, app.kubernetes.io/component: analysis }
+  ports: [{ name: http, port: 8090, targetPort: http }]

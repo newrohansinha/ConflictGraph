@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: conflictgraph-api
+    static_configs: [{ targets: ["api:8080"] }]
+  - job_name: conflictgraph-ml
+    static_configs: [{ targets: ["ml-api:8090"] }]
+  - job_name: conflictgraph-tracer
+    static_configs: [{ targets: ["host.docker.internal:9465"] }]
+

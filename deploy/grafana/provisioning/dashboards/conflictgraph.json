@@ -1,0 +1,14 @@
+{
+  "title": "ConflictGraph Operations",
+  "uid": "conflictgraph-ops",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    { "type": "timeseries", "title": "API request rate", "gridPos": {"x":0,"y":0,"w":12,"h":8}, "targets": [{"expr":"sum(rate(conflictgraph_api_requests_total[5m])) by (route)","legendFormat":"{{route}}"}] },
+    { "type": "timeseries", "title": "Tracer event throughput", "gridPos": {"x":12,"y":0,"w":12,"h":8}, "targets": [{"expr":"rate(conflictgraph_tracer_events_captured_total[1m])","legendFormat":"captured/s"},{"expr":"rate(conflictgraph_tracer_events_dropped_total[1m])","legendFormat":"dropped/s"}] },
+    { "type": "stat", "title": "Unattributed events", "gridPos": {"x":0,"y":8,"w":6,"h":5}, "targets": [{"expr":"sum(increase(conflictgraph_tracer_unattributed_events_total[1h]))"}] },
+    { "type": "heatmap", "title": "API latency", "gridPos": {"x":6,"y":8,"w":18,"h":8}, "targets": [{"expr":"sum(rate(conflictgraph_api_request_duration_seconds_bucket[5m])) by (le)"}] }
+  ]
+}
+

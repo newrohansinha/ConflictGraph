@@ -1,0 +1,89 @@
+name: conflictgraph
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: conflictgraph
+      POSTGRES_USER: conflictgraph
+      POSTGRES_PASSWORD: conflictgraph
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./controlplane/migrations/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conflictgraph -d conflictgraph"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7.2-alpine
+    profiles: [benchmark]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: controlplane/Dockerfile
+    command: ["serve", "-config", "/etc/conflictgraph/config.yaml"]
+    environment:
+      CONFLICTGRAPH_DATABASE_URL: postgresql://conflictgraph:conflictgraph@postgres:5432/conflictgraph
+    volumes:
+      - ./conflictgraph.example.yaml:/etc/conflictgraph/config.yaml:ro
+      - ./artifacts:/app/artifacts:ro
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  ml-api:
+    build:
+      context: .
+      dockerfile: python.Dockerfile
+    command: ["conflictgraph", "serve", "--config", "/etc/conflictgraph/config.yaml", "--host", "0.0.0.0", "--port", "8090"]
+    environment:
+      CONFLICTGRAPH_DATABASE_URL: postgresql://conflictgraph:conflictgraph@postgres:5432/conflictgraph
+    volumes:
+      - ./conflictgraph.example.yaml:/etc/conflictgraph/config.yaml:ro
+      - ./artifacts:/app/artifacts
+    ports: ["8090:8090"]
+    depends_on:
+      postgres: { condition: service_healthy }
+  dashboard:
+    build:
+      context: dashboard
+      dockerfile: Dockerfile
+    environment:
+      CONFLICTGRAPH_API_URL: http://ml-api:8090
+    ports: ["3000:3000"]
+    depends_on: [ml-api]
+  prometheus:
+    image: prom/prometheus:v3.11.3
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:13.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: conflictgraph
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

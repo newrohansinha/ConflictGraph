@@ -1,0 +1,37 @@
+imagePullPolicy: IfNotPresent
+controlPlane:
+  image: ghcr.io/newrohansinha/conflictgraph-controlplane:0.1.0
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+dashboard:
+  image: ghcr.io/newrohansinha/conflictgraph-dashboard:0.1.0
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+analysis:
+  image: ghcr.io/newrohansinha/conflictgraph-analysis:0.1.0
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+artifacts:
+  existingClaim: ""
+  storageClass: ""
+  accessModes: [ReadWriteMany]
+  size: 5Gi
+tracer:
+  image: ghcr.io/newrohansinha/conflictgraph-tracer:0.1.0
+  enabled: true
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: "1", memory: 512Mi }
+postgres:
+  secretName: conflictgraph-database
+  secretKey: url
+config:
+  workers: 8
+  riskPolicy: balanced
+  tracingMode: ebpf
