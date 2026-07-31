@@ -1,0 +1,78 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e '.[dev,api]'
+      - run: ruff check python tests benchmark
+      - run: mypy python/conflictgraph
+      - run: pytest -W error --cov=conflictgraph --cov-report=xml --cov-fail-under=65
+      - run: pip install pip-audit && pip-audit --local --skip-editable
+      - run: pip install build && python -m build
+      - run: conflictgraph benchmark --profile quick --trials 2 --output artifacts/benchmark
+      - uses: actions/upload-artifact@v7
+        with: { name: benchmark-report, path: artifacts/benchmark }
+  python-minimum:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.10", cache: pip }
+      - run: pip install -e '.[dev,api]'
+      - run: pytest -W error
+  go:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: controlplane } }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: "1.25", cache-dependency-path: controlplane/go.sum }
+      - run: go mod download
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -coverprofile=coverage.out ./...
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.6.0 && govulncheck ./...
+      - run: go build ./cmd/conflictgraph
+  rust-userspace:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: tracer } }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: "rustfmt, clippy" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: tracer }
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all-targets
+      - run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit
+  dashboard:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: dashboard } }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: "22", cache: npm, cache-dependency-path: dashboard/package-lock.json }
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+  containers:
+    runs-on: ubuntu-24.04
+    needs: [python, go, rust-userspace, dashboard]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - run: docker build -f controlplane/Dockerfile .
+      - run: docker build -f python.Dockerfile .
+      - run: docker build -f tracer/Dockerfile .
+      - run: docker build dashboard

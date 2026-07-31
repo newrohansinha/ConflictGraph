@@ -1,0 +1,31 @@
+name: Run ConflictGraph
+description: Execute a pytest suite with ConflictGraph and publish the run summary
+inputs:
+  workers: { description: Parallel worker count, default: "4" }
+  policy: { description: aggressive, balanced, or safe, default: balanced }
+  target: { description: Pytest file or directory to run, default: tests }
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with: { python-version: "3.12" }
+    - shell: bash
+      run: python -m pip install "$GITHUB_ACTION_PATH/../../.."
+    - shell: bash
+      env:
+        CONFLICTGRAPH_ACTION_WORKERS: ${{ inputs.workers }}
+        CONFLICTGRAPH_ACTION_POLICY: ${{ inputs.policy }}
+        CONFLICTGRAPH_ACTION_TARGET: ${{ inputs.target }}
+      run: |
+        set -o pipefail
+        conflictgraph run --workers "$CONFLICTGRAPH_ACTION_WORKERS" --policy "$CONFLICTGRAPH_ACTION_POLICY" "$CONFLICTGRAPH_ACTION_TARGET" 2>&1 | tee conflictgraph-run.log
+    - if: always()
+      shell: bash
+      run: |
+        {
+          echo '## ConflictGraph'
+          echo
+          echo '```text'
+          tail -n 30 conflictgraph-run.log
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,4 @@
+self-hosted-runner:
+  labels: [ebpf, cgroup-v2]
+config-variables: null
+paths:
